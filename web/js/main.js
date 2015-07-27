@@ -3,13 +3,6 @@
 var I = 0;
 var N = 100;
 
-var IncrementalDOM = require('incremental-dom');
-var elementOpen = IncrementalDOM.elementOpen;
-var elementClose = IncrementalDOM.elementClose;
-var elementVoid = IncrementalDOM.elementVoid;
-var text = IncrementalDOM.text;
-var patch = IncrementalDOM.patch;
-
 var data = require('./data');
 
 function update(dbs) {
@@ -52,64 +45,28 @@ function elapsedClass(t) {
   return 'Query elapsed short';
 }
 
-var TABLE_STATICS = ['class', 'table table-striped table-latest-data'];
-var DBNAME_STATICS = ['class', 'dbname'];
-var QC_STATICS = ['class', 'query-count'];
-var POPOVER_STATICS = ['class', 'popover left'];
-var POPOVER_CONTENT_STATICS = ['class', 'popover-content'];
-var POPOVER_ARROW_STATICS = ['class', 'arrow'];
-
-function render(dbs) {
-  elementOpen('table', null, TABLE_STATICS);
-  elementOpen('tbody');
-  for (var i = 0; i < dbs.length; i++) {
-    var db = dbs[i];
-    var topFiveQueries = db.getTopFiveQueries();
-    var count = db.queries.length;
-
-    elementOpen('tr', db.id);
-
-    // name
-    elementOpen('td', null, DBNAME_STATICS);
-    text(db.name);
-    elementClose('td');
-
-    // count
-    elementOpen('td', null, QC_STATICS);
-    elementOpen('span', null, null,
-                'class', labelClass(count));
-    text(count);
-    elementClose('span');
-    elementClose('td');
-
-    // queries
-    for (var j = 0; j < 5; j++) {
-      var q = topFiveQueries[j];
-      var elapsed = q.elapsed;
-      elementOpen('td', null, null,
-                  'class', elapsedClass(elapsed));
-      text(formatElapsed(elapsed));
-
-      elementOpen('div', null, POPOVER_STATICS);
-      elementOpen('div', null, POPOVER_CONTENT_STATICS);
-      text(q.query);
-      elementClose('div');
-
-      elementOpen('div', null, POPOVER_ARROW_STATICS);
-      elementClose('div');
-      elementClose('div');
-
-      elementClose('td');
-    }
-    elementClose('tr');
-  }
-  elementClose('tbody');
-  elementClose('table');
-}
-
 document.addEventListener('DOMContentLoaded', function() {
   main();
 });
+
+function text(x){return x ? x.replace(/</g,'&lt;').replace(/>/g,'&gt;'): ' ';}
+
+function build(dbs) {
+  var ret = [];
+  for (var i = 0; i < dbs.length; i++) {
+    var db = dbs[i];
+    var top5 = db.getTopFiveQueries();
+    var count = db.queries.length;
+    for (var j = 0; j < 5; j++) {
+      var q = top5[j];
+      q.elapsedClass = elapsedClass(q.elapsed);
+      q.formatElapsed = formatElapsed(q.elapsed);
+      q.text = text(q.query);
+    }
+    ret.push({id: db.id, name: text(db.name), count: count, labelClass: labelClass(count), top5: top5});
+  }
+  return {dbs: ret};
+}
 
 function main() {
   var dbs = [];
@@ -118,15 +75,19 @@ function main() {
     dbs.push(new data.Database('cluster' + i + 'slave'));
   }
 
-  setInterval(function() {
-    update(dbs);
-  }, I);
+  // setInterval(function() {
+  //   update(dbs);
+  // }, I);
+
+  var template = document.getElementById('main').innerHTML;
+  var render = doTA.compile(template, {debug:0, encode:1, keepDom: 1, watchDiff:1});
+
+  document.body.innerHTML = render(build(dbs));
 
   function domUpdate() {
-    patch(document.body, function() {
-      render(dbs);
-    });
-    requestAnimationFrame(domUpdate);
+    update(dbs);
+    render(build(dbs), null, null, true);
   }
-  domUpdate();
+  setInterval(domUpdate, 0)
+
 }

@@ -35,9 +35,9 @@ gulp.task('script', function() {
     .bundle()
     .pipe(source('main.js'))
     .pipe(buffer())
-    .pipe(sourcemaps.init({loadMaps: true}))
+    // .pipe(sourcemaps.init({loadMaps: true}))
     .pipe(gulp_if(RELEASE, uglify()))
-    .pipe(sourcemaps.write('./'))
+    // .pipe(sourcemaps.write('./'))
     .pipe(gulp.dest(DEST))
     .pipe(reload({stream: true}));
 });
@@ -49,7 +49,7 @@ gulp.task('html', function() {
 });
 
 gulp.task('assets', function() {
-  gulp.src(['./web/styles.css'])
+  gulp.src(['./web/styles.css', '../doTA/dist/*.js'])
     .pipe(gulp.dest(DEST))
     .pipe(reload({stream: true}));
 });
@@ -64,7 +64,7 @@ gulp.task('serve', ['default'], function() {
 
   gulp.watch('./web/**/*.js', ['script']);
   gulp.watch('./web/index.html', ['html']);
-  gulp.watch('./web/style.css', ['assets']);
+  gulp.watch(['./web/style.css', '../doTA/dist/*.js'], ['assets']);
 });
 
 gulp.task('deploy', ['default'], function () {
